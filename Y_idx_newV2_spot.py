@@ -392,6 +392,134 @@ def run_with_local_data(market_type='swap', start_time='2021-01-01'):
     return adf, mdf, adf90, mdf90
 
 
+def calculate_indices_from_local(start_time: str = '2021-01-01'):
+    """
+    使用本地预处理后的K线数据，重新计算所有指数并更新到本地CSV
+
+    该函数会顺序执行：
+    1. 计算合约市场（swap）的山寨指数、全市场涨跌幅指数
+    2. 计算现货市场（spot）的山寨指数、全市场涨跌幅指数
+    3. 基于上述结果计算 Y 指数（30天 / 90天）
+    4. 生成合约 vs 现货 对比所需的 ALL 市场数据
+
+    注意：该函数依赖本地路径 /Users/houjl/Downloads/FLdata 下的预处理数据，
+    不会访问交易所接口。
+    """
+    # 处理合约数据
+    print('开始处理swap数据')
+    df1_swap, df2_swap, df1_90_swap, df2_90_swap = run_with_local_data(market_type='swap', start_time=start_time)
+
+    # 处理现货数据
+    print('开始处理spot数据')
+    df1_spot, df2_spot, df1_90_spot, df2_90_spot = run_with_local_data(market_type='spot', start_time=start_time)
+
+    # =========计算Y指数（swap）================================================
+    print('开始计算swap的Y指数')
+    # 30天Y指数
+    df1_swap['candle_begin_time'] = pd.to_datetime(df1_swap['candle_begin_time'])
+    df2_swap['candle_begin_time'] = pd.to_datetime(df2_swap['candle_begin_time'])
+    merged_df_swap = pd.merge(df1_swap, df2_swap, on='candle_begin_time', how='inner')
+    merged_df_swap = merged_df_swap.sort_values('candle_begin_time')
+    merged_df_swap = merged_df_swap[['candle_begin_time', '全市场涨跌幅指数', '山寨指数']]
+    merged_df_swap['Y_idx'] = (merged_df_swap['全市场涨跌幅指数'] + merged_df_swap['山寨指数']) * 100
+    draw_index(merged_df_swap, 'swap', title=f'Yindex_swap', xaxle='Y_idx', min_val=-50, max_val=150, border=10,
+               border_n=18, save_name=f'Y_idx_v2_swap', axhline_high=150, axhline_low=0, axhline_low2=-20)
+    merged_df_swap[['candle_begin_time', 'Y_idx']].to_csv(f'/Users/houjl/Downloads/FLdata/swap/Y_idx_V2.csv', index=False)
+
+    # 90天Y指数
+    df1_90_swap['candle_begin_time'] = pd.to_datetime(df1_90_swap['candle_begin_time'])
+    df2_90_swap['candle_begin_time'] = pd.to_datetime(df2_90_swap['candle_begin_time'])
+    merged_df90_swap = pd.merge(df1_90_swap, df2_90_swap, on='candle_begin_time', how='inner')
+    merged_df90_swap = merged_df90_swap.sort_values('candle_begin_time')
+    merged_df90_swap = merged_df90_swap[['candle_begin_time', '全市场涨跌幅指数', '山寨指数']]
+    merged_df90_swap['Y_idx90'] = (merged_df90_swap['全市场涨跌幅指数'] + merged_df90_swap['山寨指数']) * 100
+    draw_index(merged_df90_swap, 'swap', title=f'Yindex90_swap', xaxle='Y_idx90', min_val=-50, max_val=150, border=10,
+               border_n=18, save_name=f'Y_idx90_v2_swap', axhline_high=200, axhline_low=0, axhline_low2=-20)
+    merged_df90_swap[['candle_begin_time', 'Y_idx90']].to_csv(f'/Users/houjl/Downloads/FLdata/swap/Y_idx90_V2.csv', index=False)
+
+    # =========计算Y指数（spot）================================================
+    print('开始计算spot的Y指数')
+    print(f'df1_spot shape: {df1_spot.shape}, df2_spot shape: {df2_spot.shape}')
+
+    # 30天Y指数
+    df1_spot['candle_begin_time'] = pd.to_datetime(df1_spot['candle_begin_time'])
+    df2_spot['candle_begin_time'] = pd.to_datetime(df2_spot['candle_begin_time'])
+    print('开始合并spot的30天数据')
+    merged_df_spot = pd.merge(df1_spot, df2_spot, on='candle_begin_time', how='inner')
+    print(f'合并后数据shape: {merged_df_spot.shape}')
+    merged_df_spot = merged_df_spot.sort_values('candle_begin_time')
+    merged_df_spot = merged_df_spot[['candle_begin_time', '全市场涨跌幅指数', '山寨指数']]
+    merged_df_spot['Y_idx'] = (merged_df_spot['全市场涨跌幅指数'] + merged_df_spot['山寨指数']) * 100
+    print('开始绘制spot的Y_idx图表')
+    draw_index(merged_df_spot, 'spot', title=f'Yindex_spot', xaxle='Y_idx', min_val=-50, max_val=150, border=10,
+               border_n=18, save_name=f'Y_idx_v2_spot', axhline_high=150, axhline_low=0, axhline_low2=-20)
+    merged_df_spot[['candle_begin_time', 'Y_idx']].to_csv(f'/Users/houjl/Downloads/FLdata/spot/Y_idx_V2.csv', index=False)
+    print('spot的30天Y指数计算完成')
+
+    # 90天Y指数
+    print('开始计算spot的90天Y指数')
+    df1_90_spot['candle_begin_time'] = pd.to_datetime(df1_90_spot['candle_begin_time'])
+    df2_90_spot['candle_begin_time'] = pd.to_datetime(df2_90_spot['candle_begin_time'])
+    print('开始合并spot的90天数据')
+    merged_df90_spot = pd.merge(df1_90_spot, df2_90_spot, on='candle_begin_time', how='inner')
+    print(f'合并后90天数据shape: {merged_df90_spot.shape}')
+    merged_df90_spot = merged_df90_spot.sort_values('candle_begin_time')
+    merged_df90_spot = merged_df90_spot[['candle_begin_time', '全市场涨跌幅指数', '山寨指数']]
+    merged_df90_spot['Y_idx90'] = (merged_df90_spot['全市场涨跌幅指数'] + merged_df90_spot['山寨指数']) * 100
+    print('开始绘制spot的Y_idx90图表')
+    draw_index(merged_df90_spot, 'spot', title=f'Yindex90_spot', xaxle='Y_idx90', min_val=-50, max_val=150, border=10,
+               border_n=18, save_name=f'Y_idx90_v2_spot', axhline_high=200, axhline_low=0, axhline_low2=-20)
+    merged_df90_spot[['candle_begin_time', 'Y_idx90']].to_csv(f'/Users/houjl/Downloads/FLdata/spot/Y_idx90_V2.csv', index=False)
+    print('spot的90天Y指数计算完成')
+
+    # 绘制合约现货比曲线
+    df_swap = pd.DataFrame()
+    df_spot = pd.DataFrame()
+    df_swap_spot = pd.DataFrame()
+
+    # 确保 ALL 目录存在
+    all_dir = '/Users/houjl/Downloads/FLdata/ALL'
+    if not os.path.exists(all_dir):
+        os.makedirs(all_dir)
+        print(f'创建目录: {all_dir}')
+
+    for i in [7, 30]:
+        print(f'开始处理合约现货比{i}天数据')
+        for s in ['swap', 'spot']:
+            try:
+                if s == 'swap':
+                    df_swap = pd.read_csv(f'/Users/houjl/Downloads/FLdata/{s}/marketzdf_index{i}.csv', encoding='gbk', usecols=['candle_begin_time', f'全市场涨跌幅指数{i}d'])
+                    df_swap.rename(columns={f'全市场涨跌幅指数{i}d': f'market_{s}_{i}d'}, inplace=True)
+                    print(f'成功读取 {s} 市场 {i}天数据')
+                if s == 'spot':
+                    df_spot = pd.read_csv(f'/Users/houjl/Downloads/FLdata/{s}/marketzdf_index{i}.csv', encoding='gbk', usecols=['candle_begin_time', f'全市场涨跌幅指数{i}d'])
+                    df_spot.rename(columns={f'全市场涨跌幅指数{i}d': f'market_{s}_{i}d'}, inplace=True)
+                    print(f'成功读取 {s} 市场 {i}天数据')
+            except Exception as e:
+                print(f'读取 {s} 市场 {i}天数据失败: {e}')
+                raise
+
+        # 合并及计算期货现货比
+        print(f'开始合并 {i}天数据')
+        df_swap_spot = pd.merge(df_swap, df_spot, on='candle_begin_time', how='inner')
+        df_swap_spot.to_csv(f'/Users/houjl/Downloads/FLdata/ALL/df_swap_spot_{i}.csv', index=False, encoding='gbk')
+        print(f'成功保存合并后的 {i}天数据')
+        if i == 7:
+            # 调用绘图函数画图
+            draw_index_list(df_swap_spot, market_type='ALL', title=f'market_{i}d',
+                            xaxle_list=[f'market_swap_{i}d', f'market_spot_{i}d'], min_val=-0.35, max_val=0.35,
+                            border=0.15, border_n=6, save_name=f'market_{i}d', axhline_high=0.5, axhline_low=0,
+                            axhline_low2=-0.25, days_limit=180)
+        else:
+            # 调用绘图函数画图
+            draw_index_list(df_swap_spot, market_type='ALL', title=f'market_{i}d',
+                            xaxle_list=[f'market_swap_{i}d', f'market_spot_{i}d'], min_val=-0.75, max_val=1,
+                            border=0.15, border_n=25, save_name=f'market_{i}d', axhline_high=1, axhline_low=0,
+                            axhline_low2=-0.3, days_limit=600)
+
+    print('本地数据计算完成，所有指数已更新到 CSV')
+
+
 def run(market_type='swap', start_time='2021-01-01'):
     # df1是山寨指数，df2是全市场涨跌幅指数
     df1, df2, df1_90, df2_90 = download_data(acc='qqdev', backdays=1800, interval='1d', start_time=start_time, market_type=market_type)
