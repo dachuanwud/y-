@@ -1,0 +1,16 @@
+{
+    "apps": [
+        {
+            "name": "YindexV224h一次",
+            "script": "/root/Y_idx/Y_idx_newV2_spot.py",
+            "exec_interpreter": "python3",
+            "merge_logs": false,
+            "instances": 1,
+            "autorestart": false,
+            "watch": false,
+            "error_file": "/root/quant/logs/Y_idx_newV2_spot.pro.error.log",
+            "out_file": "/root/quant/logs/Y_idx_newV2_spot.pro.out.log",
+            "cron_restart": "8 8 * * *"
+        }
+    ]
+}
